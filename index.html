@@ -29,8 +29,25 @@
     <div class="hero-desc" id="hero-label-desc"></div>
   </div>
 
-  <div class="section-title">위험선호 · 금리 · 유동성 그룹</div>
-  <div id="groups"></div>
+  <div class="legend-card">
+    <div class="legend-title">점수는 무엇을 뜻하나요?</div>
+    <div class="legend-body">각 지표가 <b>최근 3개월간 평소보다 얼마나 크게 움직였는지</b>를 표준화한 값이에요. 0이면 평소와 비슷, +는 증시에 우호적인 방향, −는 비우호적인 방향으로 움직였다는 뜻입니다.</div>
+    <div class="legend-scale">
+      <div class="legend-scale-item"><span class="dot" style="background:var(--red)"></span>매우 비우호적<span class="range">-1 이하</span></div>
+      <div class="legend-scale-item"><span class="dot" style="background:var(--red);opacity:.5"></span>비우호적<span class="range">-1~-0.3</span></div>
+      <div class="legend-scale-item"><span class="dot" style="background:var(--text-muted)"></span>중립<span class="range">-0.3~0.3</span></div>
+      <div class="legend-scale-item"><span class="dot" style="background:var(--blue);opacity:.5"></span>우호적<span class="range">0.3~1</span></div>
+      <div class="legend-scale-item"><span class="dot" style="background:var(--blue)"></span>매우 우호적<span class="range">1 이상</span></div>
+    </div>
+  </div>
+
+  <div class="section-title">복합 지표 그룹</div>
+  <div class="section-desc">서로 연관된 여러 지표를 하나로 묶어 평균 낸 점수예요 (카드를 탭하면 구성 지표와 그래프가 펼쳐집니다)</div>
+  <div id="groups-composite"></div>
+
+  <div class="section-title">개별 성장·유동성 지표</div>
+  <div class="section-desc">다른 지표와 겹치지 않는 독립적인 신호라 따로 표시해요</div>
+  <div id="groups-single"></div>
 
   <div class="section-title">밸류에이션 부담 (레벨 %ile)</div>
   <div class="card" id="valuation"></div>

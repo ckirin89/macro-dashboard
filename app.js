@@ -46,6 +46,7 @@ function sparkline(container, series, color) {
 
 function lineChart(wrapEl, series, opts = {}) {
   const w = 320, h = 140, pad = 10;
+  const axisW = 34; // y축 라벨 공간
   const built = buildPath(series, w, h, pad);
   wrapEl.innerHTML = "";
   if (!built) { wrapEl.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:20px 0;text-align:center;">데이터 부족</div>'; return; }
@@ -53,16 +54,30 @@ function lineChart(wrapEl, series, opts = {}) {
   const showZero = opts.showZero !== false;
   const svgNS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(svgNS, "svg");
-  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  svg.setAttribute("viewBox", `0 0 ${w + axisW} ${h}`);
   svg.setAttribute("preserveAspectRatio", "none");
 
-  if (showZero && built.zeroY >= 0 && built.zeroY <= h) {
+  const addLabel = (y, text) => {
+    const t = document.createElementNS(svgNS, "text");
+    t.setAttribute("x", w + axisW - 4);
+    t.setAttribute("y", Math.min(Math.max(y, 9), h - 3));
+    t.setAttribute("text-anchor", "end");
+    t.setAttribute("font-size", "10");
+    t.setAttribute("fill", "var(--text-muted)");
+    t.textContent = text;
+    svg.appendChild(t);
+  };
+  addLabel(pad, fmtNum(built.max, opts.digits ?? 2) + (opts.unit || ""));
+  addLabel(h - pad, fmtNum(built.min, opts.digits ?? 2) + (opts.unit || ""));
+
+  if (showZero && built.zeroY >= pad && built.zeroY <= h - pad) {
     const line = document.createElementNS(svgNS, "line");
     line.setAttribute("x1", pad); line.setAttribute("x2", w - pad);
     line.setAttribute("y1", built.zeroY); line.setAttribute("y2", built.zeroY);
     line.setAttribute("stroke", "var(--gridline)");
     line.setAttribute("stroke-width", "1");
     svg.appendChild(line);
+    addLabel(built.zeroY, "0");
   }
 
   const path = document.createElementNS(svgNS, "path");
@@ -97,9 +112,11 @@ function lineChart(wrapEl, series, opts = {}) {
   tooltip.className = "tooltip";
   wrapEl.appendChild(tooltip);
 
+  const viewBoxW = w + axisW;
+
   function nearestPoint(clientX) {
     const rect = svg.getBoundingClientRect();
-    const x = ((clientX - rect.left) / rect.width) * w;
+    const x = ((clientX - rect.left) / rect.width) * viewBoxW;
     let best = built.pts[0], bestDist = Infinity;
     for (const p of built.pts) {
       const dist = Math.abs(p.x - x);
@@ -114,7 +131,7 @@ function lineChart(wrapEl, series, opts = {}) {
     crosshair.style.opacity = "1";
     tooltip.style.opacity = "1";
     tooltip.textContent = `${fmtDate(best.date)} · ${fmtNum(best.value, opts.digits ?? 2)}${opts.unit || ""}`;
-    const px = (best.x / w) * rect.width;
+    const px = (best.x / viewBoxW) * rect.width;
     tooltip.style.left = Math.min(Math.max(px - 40, 0), rect.width - 90) + "px";
     tooltip.style.top = "-4px";
   }
@@ -147,13 +164,17 @@ async function main() {
   heroValueEl.style.color = hero === null ? "var(--text-primary)" : scoreColor(hero);
   document.getElementById("hero-label-desc").textContent = scoreLabel(hero);
 
-  // 그룹 카드
-  const groupsEl = document.getElementById("groups");
+  // 그룹 카드: 복합 지표(2개 이상)와 개별 지표(1개)를 구분해서 렌더링
+  const compositeEl = document.getElementById("groups-composite");
+  const singleEl = document.getElementById("groups-single");
   const groupOrder = Object.entries(data.groups).sort((a, b) => (b[1].members.length - a[1].members.length));
   groupOrder.forEach(([gid, g]) => {
+    const isComposite = g.members.length > 1;
+    const targetEl = isComposite ? compositeEl : singleEl;
     const card = document.createElement("div");
     card.className = "card group-card";
     const color = g.latest_score === null ? "var(--text-muted)" : scoreColor(g.latest_score);
+    const membersHtml = isComposite ? '<div data-members></div>' : '';
     card.innerHTML = `
       <div class="group-row">
         <div>
@@ -164,21 +185,23 @@ async function main() {
         <div class="group-score" style="color:${color}">${g.latest_score === null ? "—" : (g.latest_score > 0 ? "+" : "") + g.latest_score.toFixed(2)}</div>
       </div>
       <div class="group-detail" data-detail>
-        <div data-members></div>
+        ${membersHtml}
         <div class="chart-wrap" data-chart></div>
       </div>
     `;
-    groupsEl.appendChild(card);
+    targetEl.appendChild(card);
     sparkline(card.querySelector("[data-spark]"), g.history.slice(-24), color);
 
-    const membersEl = card.querySelector("[data-members]");
-    g.members.forEach((m) => {
-      const row = document.createElement("div");
-      row.className = "member-row";
-      const zColor = m.latest_z === null ? "var(--text-muted)" : scoreColor(m.latest_z);
-      row.innerHTML = `<span>${m.name_kr}</span><span class="z" style="color:${zColor}">${m.latest_z === null ? "—" : (m.latest_z > 0 ? "+" : "") + m.latest_z.toFixed(2)}</span>`;
-      membersEl.appendChild(row);
-    });
+    if (isComposite) {
+      const membersEl = card.querySelector("[data-members]");
+      g.members.forEach((m) => {
+        const row = document.createElement("div");
+        row.className = "member-row";
+        const zColor = m.latest_z === null ? "var(--text-muted)" : scoreColor(m.latest_z);
+        row.innerHTML = `<span>${m.name_kr}</span><span class="z" style="color:${zColor}">${m.latest_z === null ? "—" : (m.latest_z > 0 ? "+" : "") + m.latest_z.toFixed(2)}</span>`;
+        membersEl.appendChild(row);
+      });
+    }
 
     let opened = false;
     card.addEventListener("click", () => {
